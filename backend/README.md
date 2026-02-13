@@ -5,12 +5,18 @@
 - `GET /api/v1/health`
 - `POST /api/v1/recommend`
   - Input: `location`, `acres`, `farmer_input`
-  - Output: inferred NPK/features + top crops + market prediction
+  - Output: inferred NPK/features + top crops + market prediction + explainability
+  - Explainability:
+    - `shap_tree_explainer` when SHAP/model stack is available
+    - `surrogate_zscore` fallback when SHAP cannot run
 
 - `POST /api/v1/assistant/chat`
   - Multilingual NLP layer (English/Hindi/Telugu)
   - Links user query to relevant government schemes/subsidies
-  - Returns conversational reply + ranked scheme cards for frontend chatbot
+  - Uses a RAG-style policy retrieval layer with ChromaDB (or in-memory fallback)
+  - Returns conversational reply + ranked scheme cards + evidence chunks
+
+Note: if `chromadb` is unavailable in runtime, the service automatically falls back to an in-memory vector retriever and keeps the same response format.
 
 ## Assistant Chat Request
 
@@ -31,6 +37,7 @@
   "success": true,
   "language": "en",
   "intent": "scheme_lookup",
+  "rag_backend": "chromadb",
   "reply": "...",
   "schemes": [
     {
@@ -42,6 +49,15 @@
       "eligible": true,
       "score": 4.5,
       "link": "https://pmfby.gov.in/"
+    }
+  ],
+  "evidence": [
+    {
+      "scheme_id": "pmfby",
+      "title": "PMFBY Crop Insurance",
+      "snippet": "...",
+      "source": "https://pmfby.gov.in/",
+      "score": 0.84
     }
   ]
 }

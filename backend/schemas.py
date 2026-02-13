@@ -51,6 +51,19 @@ class MarketPrediction(BaseModel):
     recommended_market_crop: Optional[str]
 
 
+class FeatureContribution(BaseModel):
+    feature: str
+    value: float
+    impact: float
+
+
+class ExplainabilityPayload(BaseModel):
+    method: Literal["shap_tree_explainer", "surrogate_zscore"]
+    top_crop: str
+    summary: str
+    feature_contributions: List[FeatureContribution]
+
+
 class RecommendationResponse(BaseModel):
     success: bool = True
     input_source: Literal["gemini_inferred", "openai_inferred", "heuristic_fallback"]
@@ -59,6 +72,7 @@ class RecommendationResponse(BaseModel):
     normalized_features: SoilFeatures
     top_crops: List[CropPrediction]
     market_prediction: MarketPrediction
+    explainability: ExplainabilityPayload
     extraction_notes: List[str] = Field(default_factory=list)
     model_info: Dict[str, str]
 
@@ -84,9 +98,19 @@ class AssistantChatRequest(BaseModel):
     crop: Optional[str] = None
 
 
+class PolicyEvidence(BaseModel):
+    scheme_id: str
+    title: str
+    snippet: str
+    source: str
+    score: float
+
+
 class AssistantChatResponse(BaseModel):
     success: bool = True
     language: Literal["en", "hi", "te"]
     intent: str
+    rag_backend: str
     reply: str
     schemes: List[SchemeSuggestion]
+    evidence: List[PolicyEvidence]

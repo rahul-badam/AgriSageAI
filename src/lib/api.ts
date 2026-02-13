@@ -32,6 +32,12 @@ export type MarketCropPrediction = {
   confidence: number;
 };
 
+export type FeatureContribution = {
+  feature: string;
+  value: number;
+  impact: number;
+};
+
 export type RecommendationResponse = {
   success: boolean;
   input_source: 'gemini_inferred' | 'openai_inferred' | 'heuristic_fallback';
@@ -43,6 +49,12 @@ export type RecommendationResponse = {
     per_crop: MarketCropPrediction[];
     overall_cvi: number;
     recommended_market_crop: string | null;
+  };
+  explainability: {
+    method: 'shap_tree_explainer' | 'surrogate_zscore';
+    top_crop: string;
+    summary: string;
+    feature_contributions: FeatureContribution[];
   };
   extraction_notes: string[];
   model_info: Record<string, string>;
@@ -59,6 +71,14 @@ export type AssistantScheme = {
   link: string;
 };
 
+export type AssistantEvidence = {
+  scheme_id: string;
+  title: string;
+  snippet: string;
+  source: string;
+  score: number;
+};
+
 export type AssistantChatRequest = {
   message: string;
   language: 'en' | 'hi' | 'te';
@@ -71,8 +91,10 @@ export type AssistantChatResponse = {
   success: boolean;
   language: 'en' | 'hi' | 'te';
   intent: string;
+  rag_backend: string;
   reply: string;
   schemes: AssistantScheme[];
+  evidence: AssistantEvidence[];
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';

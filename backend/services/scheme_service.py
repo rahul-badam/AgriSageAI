@@ -253,6 +253,7 @@ def find_relevant_schemes(
     acres: float,
     crop: str | None,
     language: Language,
+    rag_hits: Optional[List[Dict[str, str | float]]] = None,
     limit: int = 3,
 ) -> Tuple[List[dict], str]:
     intent = _detect_intent(query)
@@ -266,10 +267,20 @@ def find_relevant_schemes(
         "scheme_lookup": {"pm-kisan": 1.5},
     }
 
+    rag_boost: Dict[str, float] = {}
+    for rank, hit in enumerate(rag_hits or []):
+        scheme_id = str(hit.get("scheme_id", "")).strip()
+        if not scheme_id:
+            continue
+        score = float(hit.get("score", 0.0))
+        rank_weight = max(0.5, 2.8 - (rank * 0.6))
+        rag_boost[scheme_id] = rag_boost.get(scheme_id, 0.0) + (score * rank_weight)
+
     scored = []
     for scheme in SCHEMES:
         score = _scheme_score(scheme, tokens, location, crop)
         score += intent_boost.get(intent, {}).get(scheme.id, 0.0)
+        score += rag_boost.get(scheme.id, 0.0)
         scored.append((score, scheme))
 
     scored.sort(key=lambda item: item[0], reverse=True)

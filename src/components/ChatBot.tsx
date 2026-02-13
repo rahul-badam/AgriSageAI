@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { MessageCircle, X, Send, Sprout, ExternalLink } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { requestAssistantChat, type AssistantScheme } from '@/lib/api';
+import { requestAssistantChat, type AssistantEvidence, type AssistantScheme } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -10,6 +10,8 @@ interface Message {
   text: string;
   isUser: boolean;
   schemes?: AssistantScheme[];
+  evidence?: AssistantEvidence[];
+  ragBackend?: string;
 }
 
 const ChatBot = () => {
@@ -66,6 +68,8 @@ const ChatBot = () => {
           text: response.reply,
           isUser: false,
           schemes: response.schemes,
+          evidence: response.evidence,
+          ragBackend: response.rag_backend,
         },
       ]);
     } catch (error) {
@@ -118,6 +122,11 @@ const ChatBot = () => {
                     <p>{msg.text}</p>
                     {!msg.isUser && msg.schemes?.length ? (
                       <div className="mt-2 space-y-2">
+                        {msg.ragBackend ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            Knowledge source: {msg.ragBackend}
+                          </p>
+                        ) : null}
                         {msg.schemes.slice(0, 3).map((scheme) => (
                           <div key={scheme.id} className="rounded-lg border border-border/60 bg-background/70 p-2 text-xs text-foreground">
                             <div className="flex items-center justify-between gap-2">
@@ -138,6 +147,16 @@ const ChatBot = () => {
                             </a>
                           </div>
                         ))}
+                        {msg.evidence?.length ? (
+                          <div className="rounded-lg border border-border/60 bg-background/60 p-2 text-[11px]">
+                            <p className="font-semibold mb-1">Policy evidence</p>
+                            {msg.evidence.slice(0, 2).map((item, idx) => (
+                              <p key={`${item.scheme_id}-${idx}`} className="text-muted-foreground mb-1">
+                                {item.title}: {item.snippet}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

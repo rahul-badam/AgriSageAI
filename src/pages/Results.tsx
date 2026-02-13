@@ -54,7 +54,9 @@ const Results = () => {
       expectedProfitTotal: Math.round(topMarket?.expected_revenue_total ?? 0),
       riskScore,
       climateVolatilityIndex: Number(apiResult.market_prediction.overall_cvi ?? 0).toFixed(2),
-      explanation: `For ${apiResult.location} (${apiResult.acres} acres), top recommendation is ${apiResult.top_crops[0]?.crop ?? 'N/A'} with ${((apiResult.top_crops[0]?.confidence ?? 0) * 100).toFixed(2)}% confidence. Feature source: ${apiResult.input_source}.`,
+      explanation: `For ${apiResult.location} (${apiResult.acres} acres), top recommendation is ${apiResult.top_crops[0]?.crop ?? 'N/A'} with ${((apiResult.top_crops[0]?.confidence ?? 0) * 100).toFixed(2)}% confidence. ${apiResult.explainability.summary}`,
+      explainMethod: apiResult.explainability.method,
+      featureContributions: apiResult.explainability.feature_contributions.slice(0, 5),
       extractionNotes: apiResult.extraction_notes,
       profitComparison: apiResult.market_prediction.per_crop.map((row) => ({
         crop: row.crop,
@@ -221,6 +223,19 @@ const Results = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground leading-relaxed">{data.explanation}</p>
+                <p className="text-xs text-muted-foreground">
+                  Explainability method: {data.explainMethod === 'shap_tree_explainer' ? 'SHAP TreeExplainer' : 'Surrogate z-score'}
+                </p>
+                <div className="space-y-2">
+                  {data.featureContributions.map((item) => (
+                    <div key={item.feature} className="flex items-center justify-between text-xs rounded-md bg-secondary/50 px-2 py-1">
+                      <span className="font-medium text-foreground">{item.feature}: {item.value}</span>
+                      <span className={item.impact >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {item.impact >= 0 ? '+' : ''}{item.impact.toFixed(3)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 {data.extractionNotes.map((note, idx) => (
                   <p key={idx} className="text-xs text-muted-foreground">{note}</p>
                 ))}
