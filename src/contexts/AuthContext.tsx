@@ -5,13 +5,16 @@ export interface FarmerProfile {
   phone: string;
   district: string;
   state: string;
-  landSize: string;
+  landSize?: string;
+  soilType?: string;
+  lastAnalysisDate?: string;
 }
 
 interface AuthContextType {
   farmer: FarmerProfile | null;
   login: (profile: FarmerProfile) => void;
   logout: () => void;
+  updateProfile: (updates: Partial<FarmerProfile>) => void;
   isLoggedIn: boolean;
 }
 
@@ -19,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   farmer: null,
   login: () => {},
   logout: () => {},
+  updateProfile: () => {},
   isLoggedIn: false,
 });
 
@@ -40,8 +44,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('agrisage_farmer');
   };
 
+  const updateProfile = (updates: Partial<FarmerProfile>) => {
+    if (farmer) {
+      const updatedFarmer = { ...farmer, ...updates };
+      setFarmer(updatedFarmer);
+      localStorage.setItem('agrisage_farmer', JSON.stringify(updatedFarmer));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ farmer, login, logout, isLoggedIn: !!farmer }}>
+    <AuthContext.Provider value={{ farmer, login, logout, updateProfile, isLoggedIn: !!farmer }}>
       {children}
     </AuthContext.Provider>
   );
