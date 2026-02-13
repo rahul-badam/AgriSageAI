@@ -1,18 +1,17 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockResults } from '@/lib/mockData';
 import { Volume2, Sprout, AlertTriangle, CloudRain, IndianRupee, Check, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts';
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import type { RecommendationResponse } from '@/lib/api';
 import Footer from '@/components/Footer';
 
 const RiskGauge = ({ score }: { score: number }) => {
-  const angle = (score / 100) * 180 - 90;
   const color = score < 30 ? 'hsl(122, 47%, 35%)' : score < 60 ? 'hsl(40, 80%, 50%)' : 'hsl(0, 84%, 60%)';
   return (
     <div className="relative w-32 h-16 mx-auto">
@@ -36,18 +35,98 @@ const Results = () => {
   const { isLoggedIn } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const data = mockResults;
+  const location = useLocation();
+
+  const apiResult = (location.state as { apiResult?: RecommendationResponse } | null)?.apiResult;
 
   useEffect(() => {
     if (!isLoggedIn) navigate('/auth');
   }, [isLoggedIn, navigate]);
 
+  const data = useMemo(() => {
+    if (!apiResult) return null;
+
+    const topMarket = apiResult.market_prediction.per_crop[0];
+    const riskScore = Math.round(topMarket?.cvi ?? apiResult.market_prediction.overall_cvi ?? 0);
+
+    return {
+      recommendedCrop: apiResult.top_crops[0]?.crop ?? 'N/A',
+      expectedProfitTotal: Math.round(topMarket?.expected_revenue_total ?? 0),
+      riskScore,
+      climateVolatilityIndex: Number(apiResult.market_prediction.overall_cvi ?? 0).toFixed(2),
+      explanation: `For ${apiResult.location} (${apiResult.acres} acres), top recommendation is ${apiResult.top_crops[0]?.crop ?? 'N/A'} with ${((apiResult.top_crops[0]?.confidence ?? 0) * 100).toFixed(2)}% confidence. Feature source: ${apiResult.input_source}.`,
+      extractionNotes: apiResult.extraction_notes,
+      profitComparison: apiResult.market_prediction.per_crop.map((row) => ({
+        crop: row.crop,
+        profit: row.expected_revenue_total,
+        adjusted: row.worst_case_revenue_total,
+      })),
+      monteCarloData: Array.from({ length: 20 }, (_, i) => {
+        const [a, b, c] = apiResult.market_prediction.per_crop;
+        return {
+          simulation: i + 1,
+          crop1: (a?.expected_revenue_total ?? 0) * (0.9 + (i % 5) * 0.03),
+          crop2: (b?.expected_revenue_total ?? 0) * (0.88 + (i % 4) * 0.03),
+          crop3: (c?.expected_revenue_total ?? 0) * (0.9 + (i % 3) * 0.04),
+        };
+      }),
+      schemes: [
+        {
+          name: 'PM-KISAN',
+          description: 'Direct income support of Rs 6,000/year to small and marginal farmers',
+          coverage: 'Income Support',
+          eligible: true,
+        },
+        {
+          name: 'PMFBY',
+          description: 'Crop insurance at subsidized premium',
+          coverage: 'Crop Insurance',
+          eligible: true,
+        },
+        {
+          name: 'Soil Health Card Scheme',
+          description: 'Soil testing and nutrient recommendations',
+          coverage: 'Soil Health',
+          eligible: true,
+        },
+        {
+          name: 'Kisan Credit Card',
+          description: 'Short-term crop production credit',
+          coverage: 'Credit Access',
+          eligible: false,
+        },
+      ],
+    };
+  }, [apiResult]);
+
   const handleExplainVoice = () => {
+    if (!data) return;
     const utterance = new SpeechSynthesisUtterance(data.explanation);
     utterance.rate = 0.9;
     utterance.lang = 'en-IN';
     window.speechSynthesis.speak(utterance);
   };
+
+  if (!data) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)]">
+        <div className="container mx-auto px-4 py-8">
+          <Card className="rounded-2xl shadow-md border-0 max-w-xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-lg">No analysis data</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Run crop analysis first so results can be generated from backend prediction.
+              </p>
+              <Button onClick={() => navigate('/analysis')}>Go to Analysis</Button>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -55,7 +134,6 @@ const Results = () => {
         <h1 className="text-2xl font-bold text-foreground mb-8">{t('results.title')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recommendation Summary */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="rounded-2xl shadow-md border-0 h-full">
               <CardHeader>
@@ -72,8 +150,8 @@ const Results = () => {
                 <div className="flex items-center gap-3">
                   <IndianRupee className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="text-xs text-muted-foreground">{t('results.profit')}</p>
-                    <p className="font-semibold text-foreground">₹{data.expectedProfit.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Total Expected Revenue ({apiResult?.acres} acres)</p>
+                    <p className="font-semibold text-foreground">Rs {data.expectedProfitTotal.toLocaleString()}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -95,7 +173,6 @@ const Results = () => {
             </Card>
           </motion.div>
 
-          {/* Profit Comparison */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card className="rounded-2xl shadow-md border-0 h-full">
               <CardHeader>
@@ -107,15 +184,14 @@ const Results = () => {
                     <XAxis dataKey="crop" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="profit" name="Raw Profit" fill="hsl(122, 47%, 35%)" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="adjusted" name="Risk-Adjusted" fill="hsl(122, 40%, 55%)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="profit" name="Expected Revenue" fill="hsl(122, 47%, 35%)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="adjusted" name="Worst Case" fill="hsl(30, 40%, 55%)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Monte Carlo */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="rounded-2xl shadow-md border-0 h-full">
               <CardHeader>
@@ -129,16 +205,15 @@ const Results = () => {
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="rice" stroke="hsl(122, 47%, 35%)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="cotton" stroke="hsl(30, 40%, 50%)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="maize" stroke="hsl(45, 70%, 50%)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="crop1" stroke="hsl(122, 47%, 35%)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="crop2" stroke="hsl(30, 40%, 50%)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="crop3" stroke="hsl(45, 70%, 50%)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Explainable AI */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Card className="rounded-2xl shadow-md border-0 h-full">
               <CardHeader>
@@ -146,6 +221,9 @@ const Results = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground leading-relaxed">{data.explanation}</p>
+                {data.extractionNotes.map((note, idx) => (
+                  <p key={idx} className="text-xs text-muted-foreground">{note}</p>
+                ))}
                 <Button variant="outline" className="rounded-xl" onClick={handleExplainVoice}>
                   <Volume2 className="h-4 w-4 mr-2" />
                   {t('results.explainVoice')}
@@ -154,7 +232,6 @@ const Results = () => {
             </Card>
           </motion.div>
 
-          {/* Government Schemes */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="lg:col-span-2">
             <Card className="rounded-2xl shadow-md border-0">
               <CardHeader>

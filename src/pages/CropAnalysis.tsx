@@ -6,20 +6,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { Mic, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { requestCropRecommendation } from '@/lib/api';
 import Footer from '@/components/Footer';
+
+type AnalysisForm = {
+  location: string;
+  acres: number;
+  farmerInput: string;
+};
 
 const CropAnalysis = () => {
   const { isLoggedIn } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ district: '', state: '', season: 'Kharif', water: 'Rainfed', nitrogen: 50 });
+  const [form, setForm] = useState<AnalysisForm>({
+    location: '',
+    acres: 1,
+    farmerInput: '',
+  });
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [listening, setListening] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!isLoggedIn) navigate('/auth');
@@ -32,54 +43,71 @@ const CropAnalysis = () => {
     t('loading.schemes'),
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     setLoading(true);
     setLoadingStep(0);
 
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step >= 4) {
-        clearInterval(interval);
-        setTimeout(() => navigate('/results'), 800);
-      } else {
-        setLoadingStep(step);
-      }
-    }, 1200);
+    const loadingInterval = window.setInterval(() => {
+      setLoadingStep((prev) => (prev < 3 ? prev + 1 : prev));
+    }, 700);
+
+    try {
+      const apiResult = await requestCropRecommendation({
+        location: form.location.trim(),
+        acres: Number(form.acres),
+        farmer_input: form.farmerInput.trim(),
+      });
+
+      localStorage.setItem(
+        'agri_last_result',
+        JSON.stringify({
+          topCrop: apiResult.top_crops?.[0]?.crop ?? null,
+          location: apiResult.location,
+          acres: apiResult.acres,
+          timestamp: Date.now(),
+        })
+      );
+
+      window.clearInterval(loadingInterval);
+      setLoading(false);
+      navigate('/results', {
+        state: {
+          apiResult,
+        },
+      });
+    } catch (err) {
+      window.clearInterval(loadingInterval);
+      setLoading(false);
+      setLoadingStep(0);
+      setErrorMessage(err instanceof Error ? err.message : 'Prediction failed');
+    }
   };
 
   const handleVoiceInput = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert('Speech recognition not supported in this browser');
+    if (!SpeechRecognition) {
+      setErrorMessage('Speech recognition is not supported in this browser.');
+      return;
+    }
 
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-IN';
     recognition.interimResults = false;
     setListening(true);
+    setErrorMessage('');
 
     recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript.toLowerCase();
+      const transcript = event.results[0][0].transcript;
       setListening(false);
-
-      // Parse spoken input
-      const districts = ['warangal', 'hyderabad', 'vijayawada', 'guntur', 'nellore', 'karimnagar'];
-      const seasons = ['kharif', 'rabi', 'zaid'];
-      const waters = ['rainfed', 'borewell', 'canal'];
-
-      const foundDistrict = districts.find(d => text.includes(d));
-      const foundSeason = seasons.find(s => text.includes(s));
-      const foundWater = waters.find(w => text.includes(w));
-
-      setForm(prev => ({
-        ...prev,
-        ...(foundDistrict && { district: foundDistrict.charAt(0).toUpperCase() + foundDistrict.slice(1) }),
-        ...(foundSeason && { season: foundSeason.charAt(0).toUpperCase() + foundSeason.slice(1) }),
-        ...(foundWater && { water: foundWater.charAt(0).toUpperCase() + foundWater.slice(1) }),
-      }));
+      setForm((prev) => ({ ...prev, farmerInput: transcript }));
     };
 
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = () => {
+      setListening(false);
+      setErrorMessage('Voice capture failed. Please try again.');
+    };
     recognition.onend = () => setListening(false);
     recognition.start();
   };
@@ -107,7 +135,7 @@ const CropAnalysis = () => {
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
-      <div className="container mx-auto px-4 py-8 max-w-lg">
+      <div className="container mx-auto px-4 py-8 max-w-xl">
         <Card className="rounded-2xl shadow-lg border border-primary/20">
           <CardHeader className="text-center">
             <CardTitle className="text-xl text-foreground">{t('analysis.title')}</CardTitle>
@@ -115,47 +143,37 @@ const CropAnalysis = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label>{t('analysis.district')}</Label>
-                <Input value={form.district} onChange={e => setForm({ ...form, district: e.target.value })} required />
-              </div>
-              <div>
-                <Label>{t('analysis.state')}</Label>
-                <Input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} required />
-              </div>
-              <div>
-                <Label>{t('analysis.season')}</Label>
-                <select
-                  value={form.season}
-                  onChange={e => setForm({ ...form, season: e.target.value })}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="Kharif">{t('analysis.kharif')}</option>
-                  <option value="Rabi">{t('analysis.rabi')}</option>
-                  <option value="Zaid">{t('analysis.zaid')}</option>
-                </select>
-              </div>
-              <div>
-                <Label>{t('analysis.water')}</Label>
-                <select
-                  value={form.water}
-                  onChange={e => setForm({ ...form, water: e.target.value })}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="Rainfed">{t('analysis.rainfed')}</option>
-                  <option value="Borewell">{t('analysis.borewell')}</option>
-                  <option value="Canal">{t('analysis.canal')}</option>
-                </select>
-              </div>
-              <div>
-                <Label>{t('analysis.nitrogen')}: {form.nitrogen}</Label>
-                <Slider
-                  value={[form.nitrogen]}
-                  onValueChange={([v]) => setForm({ ...form, nitrogen: v })}
-                  max={100}
-                  step={1}
-                  className="mt-2"
+                <Label>Location</Label>
+                <Input
+                  placeholder="District, State (e.g., Warangal, Telangana)"
+                  value={form.location}
+                  onChange={e => setForm({ ...form, location: e.target.value })}
+                  required
                 />
               </div>
+
+              <div>
+                <Label>No. of acres</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={form.acres}
+                  onChange={e => setForm({ ...form, acres: Number(e.target.value) })}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label>Voice or text farmer input (optional)</Label>
+                <Input
+                  placeholder="Example: I have red soil, usually moderate rain, planning Kharif"
+                  value={form.farmerInput}
+                  onChange={e => setForm({ ...form, farmerInput: e.target.value })}
+                />
+              </div>
+
+              {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
               <Button
                 type="button"
