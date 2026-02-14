@@ -13,7 +13,7 @@ const Auth = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [registerForm, setRegisterForm] = useState({ name: '', phone: '', district: '', state: '', landSize: '' });
+  const [registerForm, setRegisterForm] = useState({ name: '', phone: '', district: '', state: '' });
   const [loginForm, setLoginForm] = useState({ name: '', phone: '' });
 
   const handleRegister = (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ const Auth = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginForm.name && loginForm.phone) {
-      login({ ...loginForm, district: '', state: '', landSize: '' });
+      login({ ...loginForm, district: '', state: '' });
       navigate('/dashboard');
     }
   };
@@ -64,10 +64,6 @@ const Auth = () => {
                     <Label>{t('auth.state')}</Label>
                     <Input value={registerForm.state} onChange={e => setRegisterForm({ ...registerForm, state: e.target.value })} />
                   </div>
-                </div>
-                <div>
-                  <Label>{t('auth.landSize')}</Label>
-                  <Input type="number" value={registerForm.landSize} onChange={e => setRegisterForm({ ...registerForm, landSize: e.target.value })} />
                 </div>
                 <Button type="submit" className="w-full rounded-xl">{t('auth.submit')}</Button>
               </form>

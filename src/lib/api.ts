@@ -9,9 +9,19 @@ export type SoilFeatures = {
 };
 
 export type RecommendationRequest = {
-  location: string;
-  acres: number;
+  location?: string;
+  district?: string;
+  state?: string;
+  acres?: number;
+  land_size?: number;
+  landSize?: number;
+  season?: string;
+  water?: string;
+  soil_type?: string;
+  soilType?: string;
+  language?: 'en' | 'hi' | 'te';
   farmer_input?: string;
+  farmerInput?: string;
 };
 
 export type TopCrop = {
@@ -38,6 +48,25 @@ export type FeatureContribution = {
   impact: number;
 };
 
+export type AssistantScheme = {
+  id: string;
+  name: string;
+  description: string;
+  benefit: string;
+  eligibility_hint: string;
+  eligible: boolean;
+  score: number;
+  link: string;
+};
+
+export type AssistantEvidence = {
+  scheme_id: string;
+  title: string;
+  snippet: string;
+  source: string;
+  score: number;
+};
+
 export type RecommendationResponse = {
   success: boolean;
   input_source: 'gemini_inferred' | 'openai_inferred' | 'heuristic_fallback';
@@ -58,25 +87,7 @@ export type RecommendationResponse = {
   };
   extraction_notes: string[];
   model_info: Record<string, string>;
-};
-
-export type AssistantScheme = {
-  id: string;
-  name: string;
-  description: string;
-  benefit: string;
-  eligibility_hint: string;
-  eligible: boolean;
-  score: number;
-  link: string;
-};
-
-export type AssistantEvidence = {
-  scheme_id: string;
-  title: string;
-  snippet: string;
-  source: string;
-  score: number;
+  scheme_suggestions: AssistantScheme[];
 };
 
 export type AssistantChatRequest = {

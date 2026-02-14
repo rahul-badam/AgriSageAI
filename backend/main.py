@@ -80,11 +80,18 @@ def health() -> Dict[str, str]:
 
 @app.post(f"{config.API_PREFIX}/recommend", response_model=RecommendationResponse)
 def recommend(payload: RecommendationRequest) -> RecommendationResponse:
+    location = payload.resolved_location()
+    acres = payload.resolved_acres()
+    farmer_input = payload.merged_farmer_input()
+
     features, notes, source = infer_features_from_context(
-        location=payload.location,
-        acres=payload.acres,
-        farmer_input=payload.farmer_input,
+        location=location,
+        acres=acres,
+        farmer_input=farmer_input,
     )
+
+    if farmer_input:
+        notes.append("Used structured farmer context from request payload.")
 
     try:
         predictions = model_service.predict_top_k(features, k=3)
@@ -100,7 +107,7 @@ def recommend(payload: RecommendationRequest) -> RecommendationResponse:
     market_dict = market_service.build_market_predictions(
         top_crops=[{"crop": c.crop, "confidence": c.confidence} for c in top_crops],
         features=features,
-        acres=payload.acres,
+        acres=acres,
     )
 
     market_prediction = MarketPrediction(
@@ -119,10 +126,31 @@ def recommend(payload: RecommendationRequest) -> RecommendationResponse:
         ],
     )
 
+    language = normalize_language(payload.language)
+    scheme_query = " ".join(
+        part
+        for part in [
+            farmer_input,
+            f"crop {top_crop}" if top_crop and top_crop != "unknown" else "",
+            "government scheme subsidy insurance credit irrigation",
+        ]
+        if part
+    )
+
+    schemes, _ = find_relevant_schemes(
+        query=scheme_query,
+        location=location,
+        acres=acres,
+        crop=top_crop if top_crop and top_crop != "unknown" else None,
+        language=language,
+        rag_hits=[],
+        limit=4,
+    )
+
     return RecommendationResponse(
         input_source=source,
-        location=payload.location,
-        acres=float(payload.acres),
+        location=location,
+        acres=acres,
         normalized_features=SoilFeatures(**{k: float(features[k]) for k in FEATURE_ORDER}),
         top_crops=top_crops,
         market_prediction=market_prediction,
@@ -134,6 +162,7 @@ def recommend(payload: RecommendationRequest) -> RecommendationResponse:
             "feature_order": ",".join(FEATURE_ORDER),
             "model_backend": "dataset_fallback" if model_service.using_fallback else "pickle_model",
         },
+        scheme_suggestions=[SchemeSuggestion(**item) for item in schemes],
     )
 
 

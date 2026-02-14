@@ -11,25 +11,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { requestCropRecommendation } from '@/lib/api';
 import Footer from '@/components/Footer';
 
-type AnalysisForm = {
-  location: string;
-  acres: number;
-  farmerInput: string;
-};
-
 const CropAnalysis = () => {
-  const { isLoggedIn } = useAuth();
-  const { t } = useLanguage();
+  const { isLoggedIn, updateProfile } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState<AnalysisForm>({
-    location: '',
-    acres: 1,
-    farmerInput: '',
-  });
+  const [form, setForm] = useState({ district: '', state: '', landSize: '', season: 'Kharif', water: 'Rainfed', soilType: '' });
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [listening, setListening] = useState(false);
+  const [listeningField, setListeningField] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -46,6 +36,19 @@ const CropAnalysis = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    const acres = Number(form.landSize);
+    if (!Number.isFinite(acres) || acres <= 0) {
+      setErrorMessage('Please enter a valid land size in acres.');
+      return;
+    }
+
+    updateProfile({ 
+      landSize: form.landSize, 
+      soilType: form.soilType,
+      lastAnalysisDate: new Date().toLocaleDateString('en-IN')
+    });
+    
     setLoading(true);
     setLoadingStep(0);
 
@@ -54,10 +57,24 @@ const CropAnalysis = () => {
     }, 700);
 
     try {
+      const location = [form.district.trim(), form.state.trim()].filter(Boolean).join(', ');
+      const farmerContext = [
+        `Season: ${form.season}`,
+        `Water availability: ${form.water}`,
+        `Soil type: ${form.soilType.trim()}`,
+      ].join('. ');
+
       const apiResult = await requestCropRecommendation({
-        location: form.location.trim(),
-        acres: Number(form.acres),
-        farmer_input: form.farmerInput.trim(),
+        location,
+        district: form.district.trim(),
+        state: form.state.trim(),
+        acres,
+        landSize: acres,
+        season: form.season,
+        water: form.water,
+        soilType: form.soilType.trim(),
+        language,
+        farmer_input: farmerContext,
       });
 
       localStorage.setItem(
@@ -67,8 +84,9 @@ const CropAnalysis = () => {
           location: apiResult.location,
           acres: apiResult.acres,
           timestamp: Date.now(),
-        })
+        }),
       );
+      localStorage.setItem('agri_recommendation_result', JSON.stringify(apiResult));
 
       window.clearInterval(loadingInterval);
       setLoading(false);
@@ -81,34 +99,69 @@ const CropAnalysis = () => {
       window.clearInterval(loadingInterval);
       setLoading(false);
       setLoadingStep(0);
-      setErrorMessage(err instanceof Error ? err.message : 'Prediction failed');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to run analysis');
     }
   };
 
-  const handleVoiceInput = () => {
+  const handleVoiceInput = (fieldName: string) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setErrorMessage('Speech recognition is not supported in this browser.');
-      return;
-    }
+    if (!SpeechRecognition) return alert('Speech recognition not supported in this browser');
 
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-IN';
     recognition.interimResults = false;
-    setListening(true);
-    setErrorMessage('');
+    setListeningField(fieldName);
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setListening(false);
-      setForm((prev) => ({ ...prev, farmerInput: transcript }));
+      const text = event.results[0][0].transcript.toLowerCase();
+      setListeningField(null);
+
+      if (fieldName === 'district') {
+        const districts = ['warangal', 'hyderabad', 'vijayawada', 'guntur', 'nellore', 'karimnagar'];
+        const foundDistrict = districts.find(d => text.includes(d));
+        if (foundDistrict) {
+          setForm(prev => ({ ...prev, district: foundDistrict.charAt(0).toUpperCase() + foundDistrict.slice(1) }));
+        } else {
+          setForm(prev => ({ ...prev, district: text }));
+        }
+      } else if (fieldName === 'state') {
+        const states = ['telangana', 'andhra pradesh', 'karnataka', 'maharashtra', 'tamil nadu'];
+        const foundState = states.find(s => text.includes(s));
+        if (foundState) {
+          setForm(prev => ({ ...prev, state: foundState.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }));
+        } else {
+          setForm(prev => ({ ...prev, state: text }));
+        }
+      } else if (fieldName === 'landSize') {
+        const numbers = text.match(/\d+/);
+        if (numbers) {
+          setForm(prev => ({ ...prev, landSize: numbers[0] }));
+        }
+      } else if (fieldName === 'season') {
+        const seasons = ['kharif', 'rabi', 'zaid'];
+        const foundSeason = seasons.find(s => text.includes(s));
+        if (foundSeason) {
+          setForm(prev => ({ ...prev, season: foundSeason.charAt(0).toUpperCase() + foundSeason.slice(1) }));
+        }
+      } else if (fieldName === 'water') {
+        const waters = ['rainfed', 'borewell', 'canal'];
+        const foundWater = waters.find(w => text.includes(w));
+        if (foundWater) {
+          setForm(prev => ({ ...prev, water: foundWater.charAt(0).toUpperCase() + foundWater.slice(1) }));
+        }
+      } else if (fieldName === 'soilType') {
+        const soilTypes = ['black soil', 'red soil', 'alluvial', 'clay', 'sandy', 'loamy'];
+        const foundSoil = soilTypes.find(s => text.includes(s));
+        if (foundSoil) {
+          setForm(prev => ({ ...prev, soilType: foundSoil.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }));
+        } else {
+          setForm(prev => ({ ...prev, soilType: text }));
+        }
+      }
     };
 
-    recognition.onerror = () => {
-      setListening(false);
-      setErrorMessage('Voice capture failed. Please try again.');
-    };
-    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListeningField(null);
+    recognition.onend = () => setListeningField(null);
     recognition.start();
   };
 
@@ -135,7 +188,7 @@ const CropAnalysis = () => {
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
-      <div className="container mx-auto px-4 py-8 max-w-xl">
+      <div className="container mx-auto px-4 py-8 max-w-lg">
         <Card className="rounded-2xl shadow-lg border border-primary/20">
           <CardHeader className="text-center">
             <CardTitle className="text-xl text-foreground">{t('analysis.title')}</CardTitle>
@@ -143,52 +196,138 @@ const CropAnalysis = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label>Location</Label>
-                <Input
-                  placeholder="District, State (e.g., Warangal, Telangana)"
-                  value={form.location}
-                  onChange={e => setForm({ ...form, location: e.target.value })}
-                  required
-                />
+                <Label>{t('analysis.district')}</Label>
+                <div className="relative">
+                  <Input 
+                    value={form.district} 
+                    onChange={e => setForm({ ...form, district: e.target.value })} 
+                    required 
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('district')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'district' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <Label>No. of acres</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={form.acres}
-                  onChange={e => setForm({ ...form, acres: Number(e.target.value) })}
-                  required
-                />
+                <Label>{t('analysis.state')}</Label>
+                <div className="relative">
+                  <Input 
+                    value={form.state} 
+                    onChange={e => setForm({ ...form, state: e.target.value })} 
+                    required 
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('state')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'state' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <Label>Voice or text farmer input (optional)</Label>
-                <Input
-                  placeholder="Example: I have red soil, usually moderate rain, planning Kharif"
-                  value={form.farmerInput}
-                  onChange={e => setForm({ ...form, farmerInput: e.target.value })}
-                />
+                <Label>{t('auth.landSize')}</Label>
+                <div className="relative">
+                  <Input 
+                    type="number" 
+                    value={form.landSize} 
+                    onChange={e => setForm({ ...form, landSize: e.target.value })} 
+                    required 
+                    placeholder="e.g., 5"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('landSize')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'landSize' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
               </div>
 
-              {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+              <div>
+                <Label>{t('analysis.season')}</Label>
+                <div className="relative">
+                  <select
+                    value={form.season}
+                    onChange={e => setForm({ ...form, season: e.target.value })}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring pr-10"
+                  >
+                    <option value="Kharif">{t('analysis.kharif')}</option>
+                    <option value="Rabi">{t('analysis.rabi')}</option>
+                    <option value="Zaid">{t('analysis.zaid')}</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('season')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'season' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
+              </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-xl"
-                onClick={handleVoiceInput}
-                disabled={listening}
-              >
-                <Mic className={`h-4 w-4 mr-2 ${listening ? 'text-destructive animate-pulse' : ''}`} />
-                {listening ? 'Listening...' : t('analysis.speak')}
-              </Button>
+              <div>
+                <Label>{t('analysis.water')}</Label>
+                <div className="relative">
+                  <select
+                    value={form.water}
+                    onChange={e => setForm({ ...form, water: e.target.value })}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring pr-10"
+                  >
+                    <option value="Rainfed">{t('analysis.rainfed')}</option>
+                    <option value="Borewell">{t('analysis.borewell')}</option>
+                    <option value="Canal">{t('analysis.canal')}</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('water')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'water' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Soil Type</Label>
+                <div className="relative">
+                  <Input 
+                    value={form.soilType} 
+                    onChange={e => setForm({ ...form, soilType: e.target.value })} 
+                    required 
+                    placeholder="e.g., Black Soil, Red Soil, Alluvial"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput('soilType')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                    disabled={listeningField !== null}
+                  >
+                    <Mic className={`h-4 w-4 ${listeningField === 'soilType' ? 'text-primary animate-pulse' : 'text-primary/70'}`} />
+                  </button>
+                </div>
+              </div>
 
               <Button type="submit" className="w-full rounded-xl py-5 text-base font-semibold">
                 {t('analysis.run')}
               </Button>
+              {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
             </form>
           </CardContent>
         </Card>

@@ -47,7 +47,6 @@ const ChatBot = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || isSending) return;
-
     const userMsg = input.trim();
     setMessages(prev => [...prev, { text: userMsg, isUser: true }]);
     setInput('');
