@@ -1,10 +1,8 @@
 import { createRoot } from "react-dom/client";
+import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App.tsx";
 import "./index.css";
 
-<<<<<<< Updated upstream
-createRoot(document.getElementById("root")!).render(<App />);
-=======
 const env = import.meta.env as Record<string, string | undefined>;
 const clerkPublishableKey = env.VITE_CLERK_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -31,4 +29,3 @@ if (!clerkPublishableKey) {
     </ClerkProvider>,
   );
 }
->>>>>>> Stashed changes
