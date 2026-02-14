@@ -11,12 +11,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { requestCropRecommendation } from '@/lib/api';
 import Footer from '@/components/Footer';
 
+const ALLOWED_TELANGANA_DISTRICTS = [
+  'Adilabad', 'Bhadradri Kothagudem', 'Hanamkonda', 'Hyderabad', 'Jagtial', 'Jangaon',
+  'Jayashankar Bhupalpally', 'Jogulamba Gadwal', 'Kamareddy', 'Karimnagar', 'Khammam',
+  'Komaram Bheem Asifabad', 'Mahabubabad', 'Mahabubnagar', 'Mancherial', 'Medak',
+  'Medchal Malkajgiri', 'Mulugu', 'Nagarkurnool', 'Nalgonda', 'Narayanpet', 'Nirmal',
+  'Nizamabad', 'Peddapalli', 'Rajanna Sircilla', 'Rangareddy', 'Sangareddy', 'Siddipet',
+  'Suryapet', 'Vikarabad', 'Wanaparthy', 'Warangal', 'Yadadri Bhuvanagiri'
+];
+
+const ALLOWED_SOIL_TYPES = ['Black Soil', 'Red Soil', 'Alluvial', 'Clay', 'Sandy', 'Loamy'];
+
 const CropAnalysis = () => {
   const { isLoggedIn, updateProfile } = useAuth();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ district: '', state: '', landSize: '', season: 'Kharif', water: 'Rainfed', soilType: '' });
+  const [form, setForm] = useState({ district: '', state: 'Telangana', landSize: '', season: 'Kharif', water: 'Rainfed', soilType: '' });
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [listeningField, setListeningField] = useState<string | null>(null);
@@ -40,6 +51,20 @@ const CropAnalysis = () => {
     const acres = Number(form.landSize);
     if (!Number.isFinite(acres) || acres <= 0) {
       setErrorMessage('Please enter a valid land size in acres.');
+      return;
+    }
+    const districtOk = ALLOWED_TELANGANA_DISTRICTS.some(
+      (d) => d.toLowerCase() === form.district.trim().toLowerCase(),
+    );
+    if (!districtOk) {
+      setErrorMessage('Wrong type: please enter a valid Telangana district.');
+      return;
+    }
+    const soilOk = ALLOWED_SOIL_TYPES.some(
+      (s) => s.toLowerCase() === form.soilType.trim().toLowerCase(),
+    );
+    if (!soilOk) {
+      setErrorMessage('Wrong type: soil type must be one of Black Soil, Red Soil, Alluvial, Clay, Sandy, Loamy.');
       return;
     }
 
@@ -117,7 +142,7 @@ const CropAnalysis = () => {
       setListeningField(null);
 
       if (fieldName === 'district') {
-        const districts = ['warangal', 'hyderabad', 'vijayawada', 'guntur', 'nellore', 'karimnagar'];
+        const districts = ['warangal', 'hyderabad', 'karimnagar', 'nizamabad', 'khammam', 'rangareddy'];
         const foundDistrict = districts.find(d => text.includes(d));
         if (foundDistrict) {
           setForm(prev => ({ ...prev, district: foundDistrict.charAt(0).toUpperCase() + foundDistrict.slice(1) }));
@@ -125,13 +150,7 @@ const CropAnalysis = () => {
           setForm(prev => ({ ...prev, district: text }));
         }
       } else if (fieldName === 'state') {
-        const states = ['telangana', 'andhra pradesh', 'karnataka', 'maharashtra', 'tamil nadu'];
-        const foundState = states.find(s => text.includes(s));
-        if (foundState) {
-          setForm(prev => ({ ...prev, state: foundState.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }));
-        } else {
-          setForm(prev => ({ ...prev, state: text }));
-        }
+        setForm(prev => ({ ...prev, state: 'Telangana' }));
       } else if (fieldName === 'landSize') {
         const numbers = text.match(/\d+/);
         if (numbers) {
@@ -202,8 +221,14 @@ const CropAnalysis = () => {
                     value={form.district} 
                     onChange={e => setForm({ ...form, district: e.target.value })} 
                     required 
+                    list="telangana-districts"
                     className="pr-10"
                   />
+                  <datalist id="telangana-districts">
+                    {ALLOWED_TELANGANA_DISTRICTS.map((district) => (
+                      <option key={district} value={district} />
+                    ))}
+                  </datalist>
                   <button
                     type="button"
                     onClick={() => handleVoiceInput('district')}
@@ -222,6 +247,7 @@ const CropAnalysis = () => {
                     value={form.state} 
                     onChange={e => setForm({ ...form, state: e.target.value })} 
                     required 
+                    readOnly
                     className="pr-10"
                   />
                   <button
@@ -310,9 +336,15 @@ const CropAnalysis = () => {
                     value={form.soilType} 
                     onChange={e => setForm({ ...form, soilType: e.target.value })} 
                     required 
+                    list="soil-types"
                     placeholder="e.g., Black Soil, Red Soil, Alluvial"
                     className="pr-10"
                   />
+                  <datalist id="soil-types">
+                    {ALLOWED_SOIL_TYPES.map((soilType) => (
+                      <option key={soilType} value={soilType} />
+                    ))}
+                  </datalist>
                   <button
                     type="button"
                     onClick={() => handleVoiceInput('soilType')}
