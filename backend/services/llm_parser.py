@@ -21,6 +21,16 @@ RANGES = {
     "ph": (3.5, 9.5),
 }
 
+SOIL_PROFILES = {
+    "sandy loam": {"N": -10.0, "P": -5.0, "K": -6.0, "humidity": -5.0, "rainfall": -20.0, "temperature": 0.8, "ph": 0.2},
+    "sandy": {"N": -18.0, "P": -8.0, "K": -10.0, "humidity": -10.0, "rainfall": -35.0, "temperature": 1.2, "ph": 0.35},
+    "red": {"N": -12.0, "P": -6.0, "K": -4.0, "humidity": -4.0, "rainfall": -10.0, "ph": 0.15},
+    "black": {"N": 8.0, "P": 2.0, "K": 10.0, "humidity": 4.0, "rainfall": 10.0, "temperature": -0.4, "ph": -0.05},
+    "clay": {"N": 6.0, "P": 2.0, "K": 4.0, "humidity": 8.0, "rainfall": 18.0, "temperature": -0.6, "ph": -0.1},
+    "alluvial": {"N": 6.0, "P": 6.0, "K": 6.0, "humidity": 3.0, "rainfall": 8.0, "ph": -0.1},
+    "loamy": {"N": 4.0, "P": 4.0, "K": 4.0, "humidity": 2.0, "rainfall": 5.0},
+}
+
 PROMPT_TEMPLATE = """
 You are an agricultural feature estimator for crop recommendation.
 Based on the farmer context, estimate realistic values for:
@@ -245,6 +255,26 @@ def _fill_missing(features: Dict[str, float], fallback: Dict[str, float]) -> Dic
     return _normalize_features(merged)
 
 
+def _detect_soil_profile(text: str) -> Dict[str, float]:
+    lowered = text.lower()
+    for key in sorted(SOIL_PROFILES.keys(), key=len, reverse=True):
+        if key in lowered:
+            return SOIL_PROFILES[key]
+    return {}
+
+
+def _apply_soil_adjustments(features: Dict[str, float], farmer_input: str) -> Dict[str, float]:
+    profile = _detect_soil_profile(farmer_input)
+    if not profile:
+        return _normalize_features(features)
+
+    adjusted = dict(features)
+    for field, delta in profile.items():
+        if field in adjusted:
+            adjusted[field] = float(adjusted[field]) + float(delta)
+    return _normalize_features(adjusted)
+
+
 
 def infer_features_from_context(location: str, acres: float, farmer_input: str) -> Tuple[Dict[str, float], List[str], str]:
     notes: List[str] = []
@@ -255,15 +285,18 @@ def infer_features_from_context(location: str, acres: float, farmer_input: str) 
     gemini = _try_gemini(location=location, acres=acres, farmer_input=farmer_input)
     if gemini:
         merged = _fill_missing(gemini, _fill_missing(regex_hints, base_defaults))
+        merged = _apply_soil_adjustments(merged, farmer_input)
         notes.append("Feature inference via Gemini with location-aware estimation.")
         return merged, notes, "gemini_inferred"
 
     openai = _try_openai(location=location, acres=acres, farmer_input=farmer_input)
     if openai:
         merged = _fill_missing(openai, _fill_missing(regex_hints, base_defaults))
+        merged = _apply_soil_adjustments(merged, farmer_input)
         notes.append("Feature inference via OpenAI with location-aware estimation.")
         return merged, notes, "openai_inferred"
 
     fallback = _fill_missing(regex_hints, base_defaults)
+    fallback = _apply_soil_adjustments(fallback, farmer_input)
     notes.append("Gemini/OpenAI unavailable; used deterministic location-based fallback inference.")
     return fallback, notes, "heuristic_fallback"

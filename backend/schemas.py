@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Literal, Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+
+INDIA_STATES_UT = {
+    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh", "goa", "gujarat", "haryana",
+    "himachal pradesh", "jharkhand", "karnataka", "kerala", "madhya pradesh", "maharashtra", "manipur",
+    "meghalaya", "mizoram", "nagaland", "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu", "telangana",
+    "tripura", "uttar pradesh", "uttarakhand", "west bengal", "andaman and nicobar islands", "chandigarh",
+    "dadra and nagar haveli and daman and diu", "delhi", "jammu and kashmir", "ladakh", "lakshadweep",
+    "puducherry",
+}
+
+LOCATION_TEXT_PATTERN = re.compile(r"^[A-Za-z][A-Za-z .'-]{1,63}$")
 
 
 class SoilFeatures(BaseModel):
@@ -42,6 +54,16 @@ class RecommendationRequest(BaseModel):
     def _clean_text(value: Optional[str]) -> str:
         return value.strip() if isinstance(value, str) else ""
 
+    @staticmethod
+    def _is_valid_place_text(value: str) -> bool:
+        if not value:
+            return False
+        return bool(LOCATION_TEXT_PATTERN.fullmatch(value))
+
+    @staticmethod
+    def _normalize_state(value: str) -> str:
+        return re.sub(r"\s+", " ", value.strip().lower())
+
     def _resolved_location(self) -> str:
         direct_location = self._clean_text(self.location)
         if direct_location:
@@ -63,6 +85,27 @@ class RecommendationRequest(BaseModel):
             raise ValueError("location or district/state is required")
         if self._resolved_acres() is None:
             raise ValueError("acres or landSize is required")
+
+        district = self._clean_text(self.district)
+        state = self._clean_text(self.state)
+        location = self._clean_text(self.location)
+
+        if district and not self._is_valid_place_text(district):
+            raise ValueError("district contains invalid characters")
+        if state and not self._is_valid_place_text(state):
+            raise ValueError("state contains invalid characters")
+        if location and not all(self._is_valid_place_text(part.strip()) for part in location.split(",") if part.strip()):
+            raise ValueError("location contains invalid characters")
+
+        if state and self._normalize_state(state) not in INDIA_STATES_UT:
+            raise ValueError("state must be a valid Indian state or union territory")
+
+        if location and "," in location:
+            parts = [p.strip() for p in location.split(",") if p.strip()]
+            if len(parts) >= 2:
+                candidate_state = self._normalize_state(parts[-1])
+                if candidate_state not in INDIA_STATES_UT:
+                    raise ValueError("location state must be a valid Indian state or union territory")
         return self
 
     def resolved_location(self) -> str:

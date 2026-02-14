@@ -11,6 +11,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { requestCropRecommendation } from '@/lib/api';
 import Footer from '@/components/Footer';
 
+const INDIA_STATES = new Set([
+  'andhra pradesh', 'arunachal pradesh', 'assam', 'bihar', 'chhattisgarh', 'goa', 'gujarat', 'haryana',
+  'himachal pradesh', 'jharkhand', 'karnataka', 'kerala', 'madhya pradesh', 'maharashtra', 'manipur',
+  'meghalaya', 'mizoram', 'nagaland', 'odisha', 'punjab', 'rajasthan', 'sikkim', 'tamil nadu', 'telangana',
+  'tripura', 'uttar pradesh', 'uttarakhand', 'west bengal', 'andaman and nicobar islands', 'chandigarh',
+  'dadra and nagar haveli and daman and diu', 'delhi', 'jammu and kashmir', 'ladakh', 'lakshadweep', 'puducherry',
+]);
+const PLACE_REGEX = /^[A-Za-z][A-Za-z .'-]{1,63}$/;
+
 const CropAnalysis = () => {
   const { isLoaded, isLoggedIn, updateProfile } = useAuth();
   const { t, language } = useLanguage();
@@ -40,6 +49,15 @@ const CropAnalysis = () => {
     const acres = Number(form.landSize);
     if (!Number.isFinite(acres) || acres <= 0) {
       setErrorMessage('Please enter a valid land size in acres.');
+      return;
+    }
+    if (!PLACE_REGEX.test(form.district.trim())) {
+      setErrorMessage('Please enter a valid district name.');
+      return;
+    }
+    const normalizedState = form.state.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!PLACE_REGEX.test(form.state.trim()) || !INDIA_STATES.has(normalizedState)) {
+      setErrorMessage('Please select a valid Indian state/UT.');
       return;
     }
 
