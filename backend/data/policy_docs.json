@@ -1,0 +1,72 @@
+[
+  {
+    "id": "pmkisan-1",
+    "scheme_id": "pm-kisan",
+    "title": "PM-KISAN Income Support",
+    "source": "https://pmkisan.gov.in/",
+    "content": "PM-KISAN provides income support of Rs 6000 per year in three equal installments to eligible farmer families through direct benefit transfer. Farmers need valid identity and land records in most states."
+  },
+  {
+    "id": "pmkisan-2",
+    "scheme_id": "pm-kisan",
+    "title": "PM-KISAN Enrollment",
+    "source": "https://pmkisan.gov.in/",
+    "content": "Eligible farmers can verify status and update details via PM-KISAN portal or common service centers. Aadhaar seeding and bank account correctness are important for successful installment transfer."
+  },
+  {
+    "id": "pmfby-1",
+    "scheme_id": "pmfby",
+    "title": "PMFBY Crop Insurance",
+    "source": "https://pmfby.gov.in/",
+    "content": "Pradhan Mantri Fasal Bima Yojana offers crop insurance for notified crops against natural calamities, pests, and diseases. Premium rates are subsidized, and farmers can claim losses under defined conditions."
+  },
+  {
+    "id": "pmfby-2",
+    "scheme_id": "pmfby",
+    "title": "PMFBY Claims",
+    "source": "https://pmfby.gov.in/",
+    "content": "Farmers should report crop loss quickly through local agriculture officials, insurance channels, or notified systems. Correct crop sowing details and timely reporting improve claim success."
+  },
+  {
+    "id": "soil-1",
+    "scheme_id": "soil-health-card",
+    "title": "Soil Health Card Testing",
+    "source": "https://soilhealth.dac.gov.in/",
+    "content": "Soil Health Card scheme provides periodic soil testing and nutrient recommendations including Nitrogen, Phosphorus, Potassium and pH guidance to optimize fertilizer usage and improve productivity."
+  },
+  {
+    "id": "soil-2",
+    "scheme_id": "soil-health-card",
+    "title": "Soil Nutrient Advisory",
+    "source": "https://soilhealth.dac.gov.in/",
+    "content": "Farmers can use soil reports to choose balanced fertilizer plans, reduce overuse, and improve yield stability. Local extension centers can explain the report in regional languages."
+  },
+  {
+    "id": "kcc-1",
+    "scheme_id": "kisan-credit-card",
+    "title": "Kisan Credit Card Basics",
+    "source": "https://www.myscheme.gov.in/schemes/kcc",
+    "content": "Kisan Credit Card gives short-term crop loans and working capital support for seeds, fertilizers, and farm operations. Farmers can apply through participating banks with KYC and cultivation records."
+  },
+  {
+    "id": "kcc-2",
+    "scheme_id": "kisan-credit-card",
+    "title": "KCC Interest Support",
+    "source": "https://www.myscheme.gov.in/schemes/kcc",
+    "content": "Timely repayment under Kisan Credit Card may provide interest concessions as per policy. KCC helps reduce dependence on informal high-interest borrowing."
+  },
+  {
+    "id": "pmksy-1",
+    "scheme_id": "pmksy",
+    "title": "PMKSY Irrigation Support",
+    "source": "https://pmksy.gov.in/",
+    "content": "Pradhan Mantri Krishi Sinchai Yojana promotes efficient irrigation and improved water use in farms. Support for micro-irrigation like drip and sprinkler helps reduce water stress."
+  },
+  {
+    "id": "pmksy-2",
+    "scheme_id": "pmksy",
+    "title": "PMKSY Water Efficiency",
+    "source": "https://pmksy.gov.in/",
+    "content": "PMKSY focuses on per-drop-more-crop principles. Farmers in water-scarce regions can benefit from better irrigation infrastructure and water management practices."
+  }
+]
