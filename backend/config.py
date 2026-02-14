@@ -10,9 +10,10 @@ MODEL_PATH = MODELS_DIR / "crop_model.pkl"
 BRAIN_PATH = MODELS_DIR / "agrisage_brain.pkl"
 
 ENV_PATH = BASE_DIR / "backend" / ".env"
+ENV_LOCAL_PATH = BASE_DIR / "backend" / ".env.local"
 
 
-def _load_env_file(path: Path) -> None:
+def _load_env_file(path: Path, *, override: bool = False) -> None:
     if not path.exists():
         return
     for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -20,15 +21,20 @@ def _load_env_file(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
+        key = key.strip()
+        value = value.strip()
+        if override or key not in os.environ:
+            os.environ[key] = value
 
 
 try:
     from dotenv import load_dotenv
 
     load_dotenv(ENV_PATH)
+    load_dotenv(ENV_LOCAL_PATH, override=True)
 except ImportError:
     _load_env_file(ENV_PATH)
+    _load_env_file(ENV_LOCAL_PATH, override=True)
 
 APP_NAME = "AgriSageAI Backend"
 APP_VERSION = "1.1.0"
@@ -46,3 +52,4 @@ def get_cors_origins() -> List[str]:
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "").strip()

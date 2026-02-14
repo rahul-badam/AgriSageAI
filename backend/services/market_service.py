@@ -75,6 +75,34 @@ class MarketService:
             "volatility": 0.16,
         }
 
+    @staticmethod
+    def _volatility_profile(
+        base_price_volatility: float,
+        features: Dict[str, float],
+        confidence: float,
+    ) -> Dict[str, float]:
+        # Keep volatility in realistic bounds while reacting to climate stress and model confidence.
+        rainfall_deviation = min(1.0, abs(features["rainfall"] - 180.0) / 180.0)
+        temperature_deviation = min(1.0, abs(features["temperature"] - 27.0) / 12.0)
+        humidity_deviation = min(1.0, abs(features["humidity"] - 65.0) / 35.0)
+        ph_deviation = min(1.0, abs(features["ph"] - 6.5) / 2.5)
+
+        stress_index = (
+            (0.45 * rainfall_deviation)
+            + (0.25 * temperature_deviation)
+            + (0.20 * humidity_deviation)
+            + (0.10 * ph_deviation)
+        )
+        confidence_penalty = max(0.0, 1.0 - confidence)
+
+        price_volatility = (base_price_volatility * (1 + (0.5 * stress_index))) + (0.05 * confidence_penalty)
+        yield_volatility = 0.08 + (0.12 * stress_index) + (0.06 * confidence_penalty)
+
+        return {
+            "price_volatility": max(0.08, min(0.45, round(price_volatility, 4))),
+            "yield_volatility": max(0.06, min(0.35, round(yield_volatility, 4))),
+        }
+
     def build_market_predictions(
         self,
         top_crops: List[Dict[str, float]],
@@ -91,12 +119,18 @@ class MarketService:
             if metrics is None:
                 metrics = self._fallback_price_and_yield(features, confidence)
 
+            volatility = self._volatility_profile(
+                base_price_volatility=float(metrics["volatility"]),
+                features=features,
+                confidence=confidence,
+            )
+
             climate = climate_risk_engine(
                 base_price=float(metrics["price_per_quintal"]),
                 base_yield=float(metrics["yield_per_acre"]),
                 rainfall=float(features["rainfall"]),
-                price_volatility=float(metrics["volatility"]),
-                yield_volatility=0.10,
+                price_volatility=float(volatility["price_volatility"]),
+                yield_volatility=float(volatility["yield_volatility"]),
             )
 
             expected_per_acre = float(climate["baseline"]["expected_revenue"])

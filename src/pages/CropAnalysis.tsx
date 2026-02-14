@@ -12,7 +12,7 @@ import { requestCropRecommendation } from '@/lib/api';
 import Footer from '@/components/Footer';
 
 const CropAnalysis = () => {
-  const { isLoggedIn, updateProfile } = useAuth();
+  const { isLoaded, isLoggedIn, updateProfile } = useAuth();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
 
@@ -23,8 +23,8 @@ const CropAnalysis = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (!isLoggedIn) navigate('/auth');
-  }, [isLoggedIn, navigate]);
+    if (isLoaded && !isLoggedIn) navigate('/auth');
+  }, [isLoaded, isLoggedIn, navigate]);
 
   const loadingMessages = [
     t('loading.predictive'),

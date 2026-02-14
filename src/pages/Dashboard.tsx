@@ -8,15 +8,15 @@ import { useEffect } from 'react';
 import Footer from '@/components/Footer';
 
 const Dashboard = () => {
-  const { farmer, isLoggedIn } = useAuth();
+  const { farmer, isLoaded, isLoggedIn } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn) navigate('/auth');
-  }, [isLoggedIn, navigate]);
+    if (isLoaded && !isLoggedIn) navigate('/auth');
+  }, [isLoaded, isLoggedIn, navigate]);
 
-  if (!farmer) return null;
+  if (!isLoaded || !farmer) return null;
 
   const highDemandCrops = [
     { name: 'Rice (Paddy)', price: '₹2,100/quintal', trend: '+5%' },

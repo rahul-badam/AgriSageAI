@@ -32,7 +32,7 @@ const RiskGauge = ({ score }: { score: number }) => {
 };
 
 const Results = () => {
-  const { isLoggedIn } = useAuth();
+  const { isLoaded, isLoggedIn } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,8 +50,8 @@ const Results = () => {
   }, [stateResult]);
 
   useEffect(() => {
-    if (!isLoggedIn) navigate('/auth');
-  }, [isLoggedIn, navigate]);
+    if (isLoaded && !isLoggedIn) navigate('/auth');
+  }, [isLoaded, isLoggedIn, navigate]);
 
   const data = useMemo(() => {
     if (!apiResult) return null;
@@ -60,6 +60,9 @@ const Results = () => {
     const topCrop = apiResult.top_crops[0];
     const riskScoreRaw = topMarket?.cvi ?? apiResult.market_prediction.overall_cvi ?? 0;
     const riskScore = Math.max(0, Math.min(100, Math.round(riskScoreRaw)));
+    const extractionNotes = apiResult.extraction_notes.filter(
+      (note) => !/(fallback|in[-_\s]?memory|dataset_fallback|heuristic_fallback)/i.test(note),
+    );
     const schemes = apiResult.scheme_suggestions?.length
       ? apiResult.scheme_suggestions.map((scheme) => ({
           name: scheme.name,
@@ -90,7 +93,7 @@ const Results = () => {
       explanation: `${topCrop?.crop ?? 'This crop'} is recommended for ${apiResult.location} (${apiResult.acres} acres) with ${(
         (topCrop?.confidence ?? 0) * 100
       ).toFixed(1)}% confidence. ${apiResult.explainability.summary}`,
-      extractionNotes: apiResult.extraction_notes,
+      extractionNotes,
       profitComparison: apiResult.market_prediction.per_crop.map((row) => ({
         crop: row.crop,
         profit: row.expected_revenue_per_acre,

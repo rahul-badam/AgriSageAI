@@ -45,6 +45,12 @@ const ChatBot = () => {
     }
   }, [isOpen]);
 
+  const getKnowledgeSourceLabel = (backend?: string) => {
+    if (!backend) return null;
+    if (backend.toLowerCase() === 'chromadb') return 'Knowledge source: Policy database';
+    return null;
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isSending) return;
     const userMsg = input.trim();
@@ -121,9 +127,9 @@ const ChatBot = () => {
                     <p>{msg.text}</p>
                     {!msg.isUser && msg.schemes?.length ? (
                       <div className="mt-2 space-y-2">
-                        {msg.ragBackend ? (
+                        {getKnowledgeSourceLabel(msg.ragBackend) ? (
                           <p className="text-[11px] text-muted-foreground">
-                            Knowledge source: {msg.ragBackend}
+                            {getKnowledgeSourceLabel(msg.ragBackend)}
                           </p>
                         ) : null}
                         {msg.schemes.slice(0, 3).map((scheme) => (
