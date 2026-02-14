@@ -1,71 +1,81 @@
-# Welcome to AgriSageAI
+# AgriSageAI
 
-## Project info
+AgriSageAI is a full-stack agriculture assistant that helps farmers with crop recommendations, market-aware guidance, and scheme/subsidy discovery through a chatbot interface.
 
-## How can I edit this code?
+## Architecture
 
-There are several ways of editing your application.
+- Frontend: React + TypeScript + Vite (`src/`)
+- Backend: FastAPI (`backend/`)
+- ML assets: trained model files and datasets (`backend/`, `models/`)
 
-**Use Lovable**
+## Key Features
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Crop recommendation workflow from farmer inputs
+- Assistant chat API with multilingual support
+- Government scheme lookup responses in chatbot format
+- Health and prediction APIs for frontend integration
 
-Changes made via Lovable will be committed automatically to this repo.
+## Tech Stack
 
-**Use your preferred IDE**
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- FastAPI
+- scikit-learn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js and npm
+- Python 3.10+ (recommended)
 
-Follow these steps:
+## Setup
+
+### 1. Install frontend dependencies
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
 ```
 
-**Edit a file directly in GitHub**
+### 2. Install backend dependencies
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r backend/requirements.txt
+```
 
-**Use GitHub Codespaces**
+### 3. Configure backend environment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Create `backend/.env`:
 
-## What technologies are used for this project?
+```env
+GEMINI_API_KEY=YOUR_GEMINI_KEY
+OPENAI_API_KEY=
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
 
-This project is built with:
+## Run the App
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Start backend
 
-## How can I deploy this project?
+```sh
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Backend docs: `http://localhost:8000/docs`
 
-## Can I connect a custom domain to my Lovable project?
+### Start frontend
 
-Yes, you can!
+```sh
+npm run dev -- --host 0.0.0.0 --port 5173
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Frontend URL: `http://localhost:5173`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Backend API Endpoints
+
+- `GET /api/v1/health`
+- `POST /api/v1/recommend`
+- `POST /api/v1/assistant/chat`
