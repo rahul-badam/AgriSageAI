@@ -6,7 +6,7 @@ AgriSageAI is a full-stack agriculture assistant that helps farmers with crop re
 
 - Frontend: React + TypeScript + Vite (`src/`)
 - Backend: FastAPI (`backend/`)
-- ML assets: trained model files and datasets (`backend/`, `models/`)
+- ML assets: trained model files and datasets using Tensorflow(`backend/`, `models/`)
 
 ## Key Features
 
