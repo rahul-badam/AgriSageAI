@@ -117,67 +117,6 @@ const Results = () => {
     };
   }, [apiResult]);
 
-  const data = useMemo(() => {
-    if (!apiResult) return null;
-
-    const topMarket = apiResult.market_prediction.per_crop[0];
-    const topCrop = apiResult.top_crops[0];
-    const riskScoreRaw = topMarket?.cvi ?? apiResult.market_prediction.overall_cvi ?? 0;
-    const riskScore = Math.max(0, Math.min(100, Math.round(riskScoreRaw)));
-    const schemes = apiResult.scheme_suggestions?.length
-      ? apiResult.scheme_suggestions.map((scheme) => ({
-          name: scheme.name,
-          description: scheme.description,
-          coverage: scheme.benefit,
-          eligible: scheme.eligible,
-        }))
-      : [
-          {
-            name: 'PM-KISAN',
-            description: 'Direct income support of Rs 6,000/year to small and marginal farmers',
-            coverage: 'Income Support',
-            eligible: true,
-          },
-          {
-            name: 'PMFBY',
-            description: 'Crop insurance at subsidized premium',
-            coverage: 'Crop Insurance',
-            eligible: true,
-          },
-        ];
-
-    return {
-      recommendedCrop: topCrop?.crop ?? topMarket?.crop ?? 'N/A',
-      expectedProfit: Math.round(topMarket?.expected_revenue_per_acre ?? 0),
-      riskScore,
-      climateVolatilityIndex: Number(apiResult.market_prediction.overall_cvi ?? 0).toFixed(2),
-      explanation: `${topCrop?.crop ?? 'This crop'} is recommended for ${apiResult.location} (${apiResult.acres} acres) with ${(
-        (topCrop?.confidence ?? 0) * 100
-      ).toFixed(1)}% confidence. ${apiResult.explainability.summary}`,
-      extractionNotes: apiResult.extraction_notes,
-      profitComparison: apiResult.market_prediction.per_crop.map((row) => ({
-        crop: row.crop,
-        profit: row.expected_revenue_per_acre,
-        adjusted: row.worst_case_revenue_per_acre,
-      })),
-      monteCarloData: Array.from({ length: 20 }, (_, i) => {
-        const [a, b, c] = apiResult.market_prediction.per_crop;
-        return {
-          simulation: i + 1,
-          cropA: (a?.expected_revenue_total ?? 0) * (0.9 + (i % 5) * 0.03),
-          cropB: (b?.expected_revenue_total ?? 0) * (0.88 + (i % 4) * 0.03),
-          cropC: (c?.expected_revenue_total ?? 0) * (0.9 + (i % 3) * 0.04),
-        };
-      }),
-      lineSeries: [
-        { key: 'cropA', name: apiResult.market_prediction.per_crop[0]?.crop ?? 'Crop 1', color: 'hsl(122, 47%, 35%)' },
-        { key: 'cropB', name: apiResult.market_prediction.per_crop[1]?.crop ?? 'Crop 2', color: 'hsl(30, 40%, 50%)' },
-        { key: 'cropC', name: apiResult.market_prediction.per_crop[2]?.crop ?? 'Crop 3', color: 'hsl(45, 70%, 50%)' },
-      ],
-      schemes,
-    };
-  }, [apiResult]);
-
   const handleExplainVoice = () => {
     if (!data) return;
     const utterance = new SpeechSynthesisUtterance(data.explanation);
