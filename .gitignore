@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python caches and local runtime stores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/chroma_store/

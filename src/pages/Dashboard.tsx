@@ -8,15 +8,27 @@ import { useEffect } from 'react';
 import Footer from '@/components/Footer';
 
 const Dashboard = () => {
-  const { farmer, isLoggedIn } = useAuth();
+  const { farmer, isLoaded, isLoggedIn } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn) navigate('/auth');
-  }, [isLoggedIn, navigate]);
+    if (isLoaded && !isLoggedIn) navigate('/auth');
+  }, [isLoaded, isLoggedIn, navigate]);
 
-  if (!farmer) return null;
+  if (!isLoaded || !farmer) return null;
+
+  const highDemandCrops = [
+    { name: 'Rice (Paddy)', price: '₹2,100/quintal', trend: '+5%' },
+    { name: 'Cotton', price: '₹6,800/quintal', trend: '+8%' },
+    { name: 'Wheat', price: '₹2,125/quintal', trend: '+3%' },
+  ];
+
+  const upcomingDemandCrops = [
+    { name: 'Maize', forecast: 'High demand expected', season: 'Next Kharif' },
+    { name: 'Pulses', forecast: 'Growing market interest', season: 'Next Rabi' },
+    { name: 'Soybean', forecast: 'Export orders rising', season: 'Kharif 2025' },
+  ];
 
   const highDemandCrops = [
     { name: 'Rice (Paddy)', price: '₹2,100/quintal', trend: '+5%' },

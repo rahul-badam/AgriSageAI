@@ -1,55 +1,20 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Literal, Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
-TELANGANA_STATE = "Telangana"
-
-ALLOWED_TELANGANA_DISTRICTS = {
-    "adilabad": "Adilabad",
-    "bhadradri kothagudem": "Bhadradri Kothagudem",
-    "hanamkonda": "Hanamkonda",
-    "hyderabad": "Hyderabad",
-    "jagtial": "Jagtial",
-    "jangaon": "Jangaon",
-    "jayashankar bhupalpally": "Jayashankar Bhupalpally",
-    "jogulamba gadwal": "Jogulamba Gadwal",
-    "kamareddy": "Kamareddy",
-    "karimnagar": "Karimnagar",
-    "khammam": "Khammam",
-    "komaram bheem asifabad": "Komaram Bheem Asifabad",
-    "mahabubabad": "Mahabubabad",
-    "mahabubnagar": "Mahabubnagar",
-    "mancherial": "Mancherial",
-    "medak": "Medak",
-    "medchal malkajgiri": "Medchal Malkajgiri",
-    "mulugu": "Mulugu",
-    "nagarkurnool": "Nagarkurnool",
-    "nalgonda": "Nalgonda",
-    "narayanpet": "Narayanpet",
-    "nirmal": "Nirmal",
-    "nizamabad": "Nizamabad",
-    "peddapalli": "Peddapalli",
-    "rajanna sircilla": "Rajanna Sircilla",
-    "rangareddy": "Rangareddy",
-    "sangareddy": "Sangareddy",
-    "siddipet": "Siddipet",
-    "suryapet": "Suryapet",
-    "vikarabad": "Vikarabad",
-    "wanaparthy": "Wanaparthy",
-    "warangal": "Warangal",
-    "yadadri bhuvanagiri": "Yadadri Bhuvanagiri",
+INDIA_STATES_UT = {
+    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh", "goa", "gujarat", "haryana",
+    "himachal pradesh", "jharkhand", "karnataka", "kerala", "madhya pradesh", "maharashtra", "manipur",
+    "meghalaya", "mizoram", "nagaland", "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu", "telangana",
+    "tripura", "uttar pradesh", "uttarakhand", "west bengal", "andaman and nicobar islands", "chandigarh",
+    "dadra and nagar haveli and daman and diu", "delhi", "jammu and kashmir", "ladakh", "lakshadweep",
+    "puducherry",
 }
 
-ALLOWED_SOIL_TYPES = {
-    "black soil": "Black Soil",
-    "red soil": "Red Soil",
-    "alluvial": "Alluvial",
-    "clay": "Clay",
-    "sandy": "Sandy",
-    "loamy": "Loamy",
-}
+LOCATION_TEXT_PATTERN = re.compile(r"^[A-Za-z][A-Za-z .'-]{1,63}$")
 
 
 class SoilFeatures(BaseModel):
@@ -90,23 +55,14 @@ class RecommendationRequest(BaseModel):
         return value.strip() if isinstance(value, str) else ""
 
     @staticmethod
-    def _norm(value: str) -> str:
-        return " ".join(value.strip().lower().split())
+    def _is_valid_place_text(value: str) -> bool:
+        if not value:
+            return False
+        return bool(LOCATION_TEXT_PATTERN.fullmatch(value))
 
-    def _resolved_district_state(self) -> tuple[str, str]:
-        district = self._clean_text(self.district)
-        state = self._clean_text(self.state)
-        location = self._clean_text(self.location)
-
-        if location:
-            parts = [part.strip() for part in location.split(",") if part.strip()]
-            if len(parts) >= 2:
-                if not district:
-                    district = parts[0]
-                if not state:
-                    state = parts[-1]
-
-        return district, state
+    @staticmethod
+    def _normalize_state(value: str) -> str:
+        return re.sub(r"\s+", " ", value.strip().lower())
 
     def _resolved_location(self) -> str:
         direct_location = self._clean_text(self.location)
@@ -130,30 +86,26 @@ class RecommendationRequest(BaseModel):
         if self._resolved_acres() is None:
             raise ValueError("acres or landSize is required")
 
-        district_raw, state_raw = self._resolved_district_state()
-        if not district_raw:
-            raise ValueError("Wrong type: district is required")
+        district = self._clean_text(self.district)
+        state = self._clean_text(self.state)
+        location = self._clean_text(self.location)
 
-        state_norm = self._norm(state_raw) if state_raw else ""
-        if state_norm and state_norm != "telangana":
-            raise ValueError("Wrong type: state must be Telangana")
+        if district and not self._is_valid_place_text(district):
+            raise ValueError("district contains invalid characters")
+        if state and not self._is_valid_place_text(state):
+            raise ValueError("state contains invalid characters")
+        if location and not all(self._is_valid_place_text(part.strip()) for part in location.split(",") if part.strip()):
+            raise ValueError("location contains invalid characters")
 
-        district_norm = self._norm(district_raw)
-        if district_norm not in ALLOWED_TELANGANA_DISTRICTS:
-            allowed = ", ".join(ALLOWED_TELANGANA_DISTRICTS.values())
-            raise ValueError(f"Wrong type: district must be one of Telangana districts ({allowed})")
+        if state and self._normalize_state(state) not in INDIA_STATES_UT:
+            raise ValueError("state must be a valid Indian state or union territory")
 
-        soil_type_raw = self._clean_text(self.soil_type)
-        if soil_type_raw:
-            soil_norm = self._norm(soil_type_raw)
-            if soil_norm not in ALLOWED_SOIL_TYPES:
-                allowed_soils = ", ".join(ALLOWED_SOIL_TYPES.values())
-                raise ValueError(f"Wrong type: soil type must be one of ({allowed_soils})")
-            self.soil_type = ALLOWED_SOIL_TYPES[soil_norm]
-
-        self.district = ALLOWED_TELANGANA_DISTRICTS[district_norm]
-        self.state = TELANGANA_STATE
-        self.location = f"{self.district}, {self.state}"
+        if location and "," in location:
+            parts = [p.strip() for p in location.split(",") if p.strip()]
+            if len(parts) >= 2:
+                candidate_state = self._normalize_state(parts[-1])
+                if candidate_state not in INDIA_STATES_UT:
+                    raise ValueError("location state must be a valid Indian state or union territory")
         return self
 
     def resolved_location(self) -> str:
