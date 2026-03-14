@@ -74,6 +74,36 @@ npm run dev -- --host 0.0.0.0 --port 5173
 
 Frontend URL: `http://localhost:5173`
 
+## Docker (Backend Only)
+
+### 1. Prepare backend env file
+
+```sh
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and add your keys as needed.
+
+### 2. Build backend image
+
+```sh
+docker build -t agrisage-backend .
+```
+
+### 3. Run backend container
+
+```sh
+docker run --rm -p 8000:8000 --env-file backend/.env agrisage-backend
+```
+
+Health check: `http://localhost:8000/api/v1/health`
+
+### 4. Run with docker compose (optional)
+
+```sh
+docker compose up --build
+```
+
 ## Backend API Endpoints
 
 - `GET /api/v1/health`
