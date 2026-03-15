@@ -73,6 +73,7 @@ npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
 Frontend URL: `http://localhost:5173`
+Deployed Frontend URL: `https://agrisageai-frontend.onrender.com`
 
 ## Docker (Backend Only)
 
